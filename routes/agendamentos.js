@@ -2,7 +2,18 @@ const express = require("express");
 const router = express.Router();
 
 const pool = require("../database/database");
+const multer = require("multer");
 
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  }
+});
+
+const upload = multer({ storage });
 
 // =========================
 // LISTAR AGENDAMENTOS
@@ -33,8 +44,7 @@ router.get("/", async (req, res) => {
 
 // =========================
 // CRIAR AGENDAMENTO
-// =========================
-router.post("/", async (req, res) => {
+router.post("/", upload.single("comprovante"), async (req, res) => {
   const {
     cliente,
     servico,
@@ -43,6 +53,7 @@ router.post("/", async (req, res) => {
     pagamento,
     total,
   } = req.body;
+  const comprovante = req.file ? req.file.filename : null;
 
   if (!cliente || !servico || !data || !horario) {
     return res.status(400).json({

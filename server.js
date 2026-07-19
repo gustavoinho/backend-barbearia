@@ -1,10 +1,22 @@
 require("dotenv").config();
+const multer = require ("multer");
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  }
+});
+
+const upload = multer({ storage });
 const express = require("express");
 const cors = require("cors");
 const pool = require("./database/database");
 const agendamentosRoutes = require("./routes/agendamentos");
 
 const app = express();
+app.use("/uploads", express.static("uploads"));
 
 app.use(cors());
 app.use(express.json());
@@ -51,6 +63,9 @@ CREATE TABLE IF NOT EXISTS agendamentos (
   total INTEGER
 );
 
+ALTER TABLE agendamentos
+ADD COLUMN IF NOT EXISTS comprovante
+TEXT;
 
 -- =========================
 -- TABELA DE CONFIGURAÇÕES
