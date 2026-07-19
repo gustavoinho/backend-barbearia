@@ -10,10 +10,19 @@ const pool = require("../database/database");
 router.get("/", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM agendamentos ORDER BY data, horario"
+      `
+      SELECT 
+        agendamentos.*,
+        clientes.telefone
+      FROM agendamentos
+      LEFT JOIN clientes
+      ON agendamentos.cliente = clientes.nome
+      ORDER BY agendamentos.data, agendamentos.horario
+      `
     );
 
     res.json(result.rows);
+
   } catch (err) {
     res.status(500).json({
       erro: err.message,
