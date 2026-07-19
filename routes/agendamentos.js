@@ -1,268 +1,150 @@
 const express = require("express");
 const router = express.Router();
 
-const db = require("../database/database");
+const pool = require("../database/database");
 
 
+// =========================
 // LISTAR AGENDAMENTOS
-router.get("/", (req,res)=>{
+// =========================
+router.get("/", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM agendamentos ORDER BY data, horario"
+    );
 
-  db.all(
-    "SELECT * FROM agendamentos ORDER BY data, horario",
-    [],
-    (err,rows)=>{
-
-      if(err){
-        return res.status(500).json({
-          erro:err.message
-        });
-      }
-
-      res.json(rows);
-
-    }
-  );
-
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({
+      erro: err.message,
+    });
+  }
 });
 
 
-
-
+// =========================
 // CRIAR AGENDAMENTO
-router.post("/",(req,res)=>{
-
-
+// =========================
+router.post("/", async (req, res) => {
   const {
     cliente,
     servico,
     data,
     horario,
     pagamento,
-    total
+    total,
   } = req.body;
 
-
-
-  if(!cliente || !servico || !data || !horario){
-
+  if (!cliente || !servico || !data || !horario) {
     return res.status(400).json({
-      erro:"Preencha todos os campos"
+      erro: "Preencha todos os campos",
     });
-
   }
 
+  try {
+    // verifica se está fechado
+    const config = await pool.query(
+      "SELECT fechado FROM configuracoes WHERE id=1"
+    );
 
-
-  // verifica se a barbearia está fechada
-
-  db.get(
-    "SELECT fechado FROM configuracoes WHERE id=1",
-    [],
-    (err,config)=>{
-
-
-      if(err){
-
-        return res.status(500).json({
-          erro:err.message
-        });
-
-      }
-
-
-
-      if(config && config.fechado === 1){
-
-        return res.status(400).json({
-          erro:"Estamos fechados hoje!"
-        });
-
-      }
-
-
-
-      // bloqueia domingo pelo backend
-
-      const dia = new Date(data+"T00:00:00").getDay();
-
-
-      if(dia === 0){
-
-        return res.status(400).json({
-          erro:"Domingo não funciona"
-        });
-
-      }
-
-
-
-
-      // verifica horário ocupado
-
-      db.get(
-        "SELECT * FROM agendamentos WHERE data=? AND horario=?",
-        [data,horario],
-
-        (err,existe)=>{
-
-
-          if(err){
-
-            return res.status(500).json({
-              erro:err.message
-            });
-
-          }
-
-
-
-          if(existe){
-
-            return res.status(400).json({
-              erro:"Horário ocupado"
-            });
-
-          }
-
-
-
-
-
-          db.run(
-            `
-            INSERT INTO agendamentos
-            (cliente,servico,data,horario,status,pagamento,total)
-            VALUES(?,?,?,?,?,?,?)
-            `,
-            [
-              cliente,
-              servico,
-              data,
-              horario,
-              "pendente",
-              pagamento,
-              total
-            ],
-
-
-            function(err){
-
-
-              if(err){
-
-                return res.status(500).json({
-                  erro:err.message
-                });
-
-              }
-
-
-
-              res.json({
-
-                id:this.lastID,
-                mensagem:"Agendamento criado!"
-
-              });
-
-
-            }
-
-
-          );
-
-
-        }
-
-
-      );
-
-
+    if (config.rows[0] && config.rows[0].fechado === true) {
+      return res.status(400).json({
+        erro: "Estamos fechados hoje!",
+      });
     }
 
-  );
+    // bloqueia domingo
+    const dia = new Date(data + "T00:00:00").getDay();
 
+    if (dia === 0) {
+      return res.status(400).json({
+        erro: "Domingo não funciona",
+      });
+    }
 
+    // verifica horário ocupado
+    const existe = await pool.query(
+      "SELECT * FROM agendamentos WHERE data=$1 AND horario=$2",
+      [data, horario]
+    );
+
+    if (existe.rows.length > 0) {
+      return res.status(400).json({
+        erro: "Horário ocupado",
+      });
+    }
+
+    // cria agendamento
+    const result = await pool.query(
+      `
+      INSERT INTO agendamentos
+      (cliente, servico, data, horario, status, pagamento, total)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      RETURNING id
+      `,
+      [
+        cliente,
+        servico,
+        data,
+        horario,
+        "pendente",
+        pagamento,
+        total,
+      ]
+    );
+
+    res.json({
+      id: result.rows[0].id,
+      mensagem: "Agendamento criado!",
+    });
+  } catch (err) {
+    res.status(500).json({
+      erro: err.message,
+    });
+  }
 });
 
 
-
-
-
-// CONFIRMAR OU CANCELAR = REMOVER AGENDAMENTO
-// libera automaticamente o horário
-
-router.delete("/:id",(req,res)=>{
-
+// =========================
+// DELETAR (CONFIRMAR/CANCELAR)
+// =========================
+router.delete("/:id", async (req, res) => {
   const id = req.params.id;
 
+  try {
+    const agendamento = await pool.query(
+      "SELECT cliente FROM agendamentos WHERE id=$1",
+      [id]
+    );
 
-  db.get(
-    "SELECT cliente FROM agendamentos WHERE id=?",
-    [id],
-
-    (err,agendamento)=>{
-
-
-      if(err){
-
-        return res.status(500).json({
-          erro:err.message
-        });
-
-      }
-
-
-      if(!agendamento){
-
-        return res.status(404).json({
-          erro:"Agendamento não encontrado"
-        });
-
-      }
-
-
-
-      db.run(
-        "DELETE FROM agendamentos WHERE id=?",
-        [id],
-
-        (err)=>{
-
-
-          if(err){
-
-            return res.status(500).json({
-              erro:err.message
-            });
-
-          }
-
-
-
-          db.run(
-            "DELETE FROM clientes WHERE nome=?",
-            [agendamento.cliente]
-          );
-
-
-
-          res.json({
-
-            mensagem:"Agendamento removido e horário liberado"
-
-          });
-
-
-        }
-
-      );
-
-
+    if (agendamento.rows.length === 0) {
+      return res.status(404).json({
+        erro: "Agendamento não encontrado",
+      });
     }
 
-  );
+    const nomeCliente = agendamento.rows[0].cliente;
 
+    // remove agendamento
+    await pool.query(
+      "DELETE FROM agendamentos WHERE id=$1",
+      [id]
+    );
 
+    // remove cliente (igual seu comportamento antigo)
+    await pool.query(
+      "DELETE FROM clientes WHERE nome=$1",
+      [nomeCliente]
+    );
+
+    res.json({
+      mensagem: "Agendamento removido e horário liberado",
+    });
+  } catch (err) {
+    res.status(500).json({
+      erro: err.message,
+    });
+  }
 });
+
 module.exports = router;

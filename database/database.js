@@ -1,11 +1,19 @@
-const sqlite3 = require("sqlite3").verbose();
+const { Pool } = require("pg");
 
-const db = new sqlite3.Database("./database/barbearia.db", (err) => {
-  if (err) {
-    console.log("Erro ao abrir banco:", err.message);
-  } else {
-    console.log("SQLite conectado!");
-  }
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
-module.exports = db;
+// teste de conexão (opcional mas recomendado)
+pool.connect()
+  .then(() => {
+    console.log("PostgreSQL conectado!");
+  })
+  .catch((err) => {
+    console.error("Erro ao conectar no banco:", err.message);
+  });
+
+module.exports = pool;
