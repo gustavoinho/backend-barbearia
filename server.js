@@ -12,9 +12,10 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 async function criarBanco() {
-  try{
+  try {
     await pool.query(`
-      -- =========================
+
+-- =========================
 -- TABELA DE CLIENTES
 -- =========================
 CREATE TABLE IF NOT EXISTS clientes (
@@ -30,8 +31,9 @@ CREATE TABLE IF NOT EXISTS clientes (
 CREATE TABLE IF NOT EXISTS servicos (
   id SERIAL PRIMARY KEY,
   nome TEXT,
-  preco INTEGER,
-  codigo TEXT
+  preco NUMERIC(10,2),
+  codigo TEXT UNIQUE,
+  imagem TEXT
 );
 
 
@@ -78,16 +80,20 @@ CREATE TABLE IF NOT EXISTS comunicados (
 -- =========================
 -- INSERIR SERVIÇOS PADRÃO
 -- =========================
-INSERT INTO servicos (nome, preco, codigo) VALUES
-('Corte e sobrancelha',45,'corte'),
-('Sobrancelha na gilete',10,'sg'),
-('Corte e barba',55,'cb'),
-('Corte barba e sobrancelha',65,'csb'),
-('Barba somente',25,'barba'),
-('Pezinho do cabelo',12,'pe'),
-('Luzes (a partir de 90 - valor a combinar)',90,'luzes')
-ON CONFLICT DO NOTHING;`
-);
+INSERT INTO servicos (nome, preco, codigo, imagem)
+VALUES
+('Corte e sobrancelha',45,'corte','corte.jpg'),
+('Sobrancelha na gilete',10,'sg','sg.jpg'),
+('Corte e barba',55,'cb','cb.jpg'),
+('Corte barba e sobrancelha',65,'csb','csb.jpg'),
+('Barba somente',25,'barba','barba.jpg'),
+('Pezinho do cabelo',12,'pe','pe.jpg'),
+('Luzes (a partir de 90 - valor a combinar)',90,'luzes','luzes.jpg')
+ON CONFLICT (codigo) DO UPDATE SET
+nome = EXCLUDED.nome,
+preco = EXCLUDED.preco,
+imagem = EXCLUDED.imagem;
+`);
 console.log("Banco PostgreSQL preparado!");
   }catch(err){
     console.log("Erro criando banco:",err.message);
@@ -223,7 +229,7 @@ app.get("/clientes", async (req, res) => {
 // =========================
 
 app.post("/servicos", async (req, res) => {
-  const { nome, preco } = req.body;
+  const { nome, preco, imagem } = req.body;
 
   if (!nome || !preco) {
     return res.status(400).json({
@@ -233,8 +239,8 @@ app.post("/servicos", async (req, res) => {
 
   try {
     const result = await pool.query(
-      "INSERT INTO servicos(nome,preco) VALUES($1,$2) RETURNING id",
-      [nome, preco]
+      "INSERT INTO servicos(nome,preco,imagem) VALUES($1,$2,$3) RETURNING id",
+      [nome, preco, imagem]
     );
 
     res.json({
