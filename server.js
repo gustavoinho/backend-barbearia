@@ -193,42 +193,46 @@ app.post("/clientes", async (req, res) => {
   }
 
   try {
-    // 🔴 VERIFICA TELEFONE REPETIDO
-    const telefoneExiste = await pool.query(
+
+    // verifica se cliente já existe
+    const clienteExiste = await pool.query(
       "SELECT * FROM clientes WHERE telefone=$1",
       [telefone]
     );
 
-    if (telefoneExiste.rows.length > 0) {
-      return res.status(400).json({
-        erro: "Esse número já tem um agendamento"
+
+    // se já existe, não cria outro
+    if(clienteExiste.rows.length > 0){
+
+      return res.json({
+        mensagem:"Cliente já cadastrado",
+        cliente: clienteExiste.rows[0]
       });
+
     }
-    // 🟡 VERIFICA NOME REPETIDO
-const nomeExiste = await pool.query(
-  "SELECT * FROM clientes WHERE nome=$1",
-  [nome]
-);
 
-if (nomeExiste.rows.length > 0 && !nome.includes(" ")) {
-  return res.status(400).json({
-    erro: "Já existe um cliente com esse nome, adicione o sobrenome"
-  });
-}
 
-    // salva cliente
+    // se não existe, cria
     await pool.query(
-      "INSERT INTO clientes (nome, telefone) VALUES ($1,$2)",
+      "INSERT INTO clientes(nome, telefone) VALUES($1,$2)",
       [nome, telefone]
     );
 
-    res.json({ mensagem: "Cliente salvo!" });
 
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
+    res.json({
+      mensagem:"Cliente salvo!"
+    });
+
+
+  } catch(err){
+
+    res.status(500).json({
+      erro:err.message
+    });
+
   }
-});
 
+});
 app.get("/clientes", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM clientes");
