@@ -154,7 +154,19 @@ if (clienteTel.rows.length > 0) {
         erro: "Horário ocupado",
       });
     }
+// busca o id do cliente
+const clienteBanco = await pool.query(
+  "SELECT id FROM clientes WHERE LOWER(nome)=LOWER($1)",
+  [cliente]
+);
 
+if (clienteBanco.rows.length === 0) {
+  return res.status(400).json({
+    erro: "Cliente não encontrado no banco"
+  });
+}
+
+const cliente_id = clienteBanco.rows[0].id;
     // cria agendamento
     const result = await pool.query(
   `
