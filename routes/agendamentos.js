@@ -46,7 +46,7 @@ router.get("/", async (req, res) => {
         clientes.telefone
       FROM agendamentos
       LEFT JOIN clientes
-      ON agendamentos.cliente = clientes.nome
+      ON agendamentos.cliente_id = clientes.id
       ORDER BY agendamentos.data, agendamentos.horario
       `
     );
@@ -82,7 +82,25 @@ console.log("FILE:", req.file);
       erro: "Preencha todos os campos",
     });
   }
+// =========================
+// VALIDA NOME REPETIDO SEM SOBRENOME
+// =========================
+const nomeSemEspaco = !cliente.trim().includes(" ");
 
+if (nomeSemEspaco) {
+
+  const nomeExiste = await pool.query(
+    "SELECT * FROM clientes WHERE LOWER(nome) = LOWER($1)",
+    [cliente]
+  );
+
+  if (nomeExiste.rows.length > 0) {
+    return res.status(400).json({
+      erro: "Esse nome já existe, adicione um sobrenome"
+    });
+  }
+
+}
   try {
     // verifica se está fechado
     const config = await pool.query(
@@ -103,6 +121,34 @@ console.log("FILE:", req.file);
         erro: "Domingo não funciona",
       });
     }
+    // =========================
+// BLOQUEAR MESMO TELEFONE NO MESMO DIA
+// =========================
+const clienteTel = await pool.query(
+  "SELECT telefone FROM clientes WHERE nome=$1",
+  [cliente]
+);
+
+if (clienteTel.rows.length > 0) {
+
+  const telefoneCliente = clienteTel.rows[0].telefone;
+
+  const jaAgendou = await pool.query(
+    `
+    SELECT a.* FROM agendamentos a
+    JOIN clientes c ON a.cliente = c.nome
+    WHERE c.telefone = $1 AND a.data = $2
+    `,
+    [telefoneCliente, data]
+  );
+
+  if (jaAgendou.rows.length > 0) {
+    return res.status(400).json({
+      erro: "Esse telefone já tem agendamento nesse dia"
+    });
+  }
+
+}
 
     // verifica horário ocupado
     const existe = await pool.query(
@@ -120,8 +166,8 @@ console.log("FILE:", req.file);
     const result = await pool.query(
   `
   INSERT INTO agendamentos
-(cliente, servico, data, horario, pagamento, total, comprovante)
-VALUES ($1,$2,$3,$4,$5,$6,$7)
+(cliente, cliente_id, servico, data, horario, pagamento, total, comprovante)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
   RETURNING id
   `,
   [
