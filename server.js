@@ -185,12 +185,6 @@ app.post("/clientes", async (req, res) => {
   }
   // =========================
 // BLOQUEAR NOME IGUAL SEM SOBRENOME
-const clienteDb = await pool.query(
-  "SELECT id FROM clientes WHERE nome=$1",
-  [cliente]
-);
-
-const cliente_id = clienteDb.rows[0]?.id;
 // =========================
 // =========================
 // VALIDA NOME SEM SOBRENOME (SÓ SE FOR NOVO)

@@ -68,6 +68,7 @@ router.post("/", upload.single("comprovante"), async (req, res) => {
 console.log("FILE:", req.file);
   const {
     cliente,
+    cliente_id,
     servico,
     data,
     horario,
@@ -76,6 +77,7 @@ console.log("FILE:", req.file);
   } = req.body;
   console.log({
 cliente,
+cliente_id,
 servico,
 data,
 horario,
@@ -127,7 +129,7 @@ if (clienteTel.rows.length > 0) {
   const jaAgendou = await pool.query(
     `
     SELECT a.* FROM agendamentos a
-    JOIN clientes c ON a.cliente = c.nome
+    JOIN clientes c ON a.cliente_id = c.id
     WHERE c.telefone = $1 AND a.data = $2
     `,
     [telefoneCliente, data]
@@ -163,6 +165,7 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
   `,
   [
     cliente,
+    cliente_id,
     servico,
     data,
     horario,
