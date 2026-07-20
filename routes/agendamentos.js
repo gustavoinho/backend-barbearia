@@ -13,7 +13,21 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits:{
+    fileSize: 5 * 1024 * 1024
+  },
+  fileFilter:(req,file,cb)=>{
+
+    if(file.mimetype.startsWith("image/")){
+      cb(null,true);
+    }else{
+      cb(new Error("Somente imagens são permitidas"));
+    }
+
+  }
+});
 
 // =========================
 // LISTAR AGENDAMENTOS
@@ -45,6 +59,8 @@ router.get("/", async (req, res) => {
 // =========================
 // CRIAR AGENDAMENTO
 router.post("/", upload.single("comprovante"), async (req, res) => {
+  console.log("BODY:", req.body);
+console.log("FILE:", req.file);
   const {
     cliente,
     servico,
@@ -53,6 +69,7 @@ router.post("/", upload.single("comprovante"), async (req, res) => {
     pagamento,
     total,
   } = req.body;
+  
   const comprovante = req.file ? req.file.filename : null;
 
   if (!cliente || !servico || !data || !horario) {
