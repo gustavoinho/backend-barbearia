@@ -74,6 +74,14 @@ console.log("FILE:", req.file);
     pagamento,
     total,
   } = req.body;
+  console.log({
+cliente,
+servico,
+data,
+horario,
+pagamento,
+total
+});
   
   const comprovante = req.file ? req.file.filename : null;
 
@@ -108,7 +116,7 @@ console.log("FILE:", req.file);
 // BLOQUEAR MESMO TELEFONE NO MESMO DIA
 // =========================
 const clienteTel = await pool.query(
-  "SELECT telefone FROM clientes WHERE nome=$1",
+  "SELECT telefone FROM clientes WHERE LOWER(nome)=LOWER($1)",
   [cliente]
 );
 
