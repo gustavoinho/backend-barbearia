@@ -83,24 +83,7 @@ console.log("FILE:", req.file);
     });
   }
 // =========================
-// VALIDA NOME REPETIDO SEM SOBRENOME
-// =========================
-const nomeSemEspaco = !cliente.trim().includes(" ");
 
-if (nomeSemEspaco) {
-
-  const nomeExiste = await pool.query(
-    "SELECT * FROM clientes WHERE LOWER(nome) = LOWER($1)",
-    [cliente]
-  );
-
-  if (nomeExiste.rows.length > 0) {
-    return res.status(400).json({
-      erro: "Esse nome já existe, adicione um sobrenome"
-    });
-  }
-
-}
   try {
     // verifica se está fechado
     const config = await pool.query(
