@@ -96,22 +96,22 @@ router.post("/", upload.single("comprovante"), async (req, res) => {
 
     // cria agendamento
     const result = await pool.query(
-      `
-      INSERT INTO agendamentos
-      (cliente, servico, data, horario, status, pagamento, total)
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
-      RETURNING id
-      `,
-      [
-        cliente,
-        servico,
-        data,
-        horario,
-        "pendente",
-        pagamento,
-        total,
-      ]
-    );
+  `
+  INSERT INTO agendamentos
+(cliente, servico, data, horario, pagamento, total, comprovante)
+VALUES ($1,$2,$3,$4,$5,$6,$7)
+  RETURNING id
+  `,
+  [
+    cliente,
+    servico,
+    data,
+    horario,
+    pagamento,
+    total,
+    comprovante
+  ]
+);
 
     res.json({
       id: result.rows[0].id,
