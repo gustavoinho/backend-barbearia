@@ -7,7 +7,26 @@ const agendamentosRoutes = require("./routes/agendamentos");
 const app = express();
 app.use("/uploads", express.static("uploads"));
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    "https://lara-barbearia.vercel.app",
+    "http://localhost:5173"
+  ],
+  methods: [
+    "GET",
+    "POST",
+    "PUT",
+    "DELETE",
+    "OPTIONS"
+  ],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization"
+  ]
+}));
+
+app.options("*", cors());
+
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
@@ -56,8 +75,6 @@ CREATE TABLE IF NOT EXISTS agendamentos (
 ALTER TABLE agendamentos
 ADD COLUMN IF NOT EXISTS comprovante
 TEXT;
-ALTER TABLE agendamentos
-ADD COLUMN IF NOT EXISTS cliente_id INTEGER;
 
 -- =========================
 -- TABELA DE CONFIGURAÇÕES
@@ -183,29 +200,7 @@ app.post("/clientes", async (req, res) => {
       erro: "Nome e telefone obrigatórios"
     });
   }
-  // =========================
-// BLOQUEAR NOME IGUAL SEM SOBRENOME
-// =========================
-// =========================
-// VALIDA NOME SEM SOBRENOME (SÓ SE FOR NOVO)
-// =========================
-const nomeSemEspaco = !cliente.trim().includes(" ");
 
-if (nomeSemEspaco) {
-
-  const nomeExiste = await pool.query(
-    "SELECT * FROM clientes WHERE LOWER(nome) = LOWER($1)",
-    [cliente]
-  );
-
-  // ⚠️ só bloqueia se NÃO existir ainda (novo cliente)
-  if (nomeExiste.rows.length === 0) {
-    return res.status(400).json({
-      erro: "Adicione nome e sobrenome"
-    });
-  }
-
-}
   try {
 
     // verifica se cliente já existe
@@ -269,7 +264,6 @@ app.post("/servicos", async (req, res) => {
       erro: "Nome e preço obrigatórios",
     });
   }
-  
 
   try {
     const result = await pool.query(

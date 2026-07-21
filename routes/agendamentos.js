@@ -25,13 +25,16 @@ const upload = multer({
   },
   fileFilter:(req,file,cb)=>{
 
-    if(file.mimetype.startsWith("image/")){
+    if(
+      file.mimetype.startsWith("image/") ||
+      file.mimetype === "application/pdf"
+    ){
       cb(null,true);
     }else{
-      cb(new Error("Somente imagens são permitidas"));
+      cb(new Error("Somente imagens ou PDF são permitidos"));
     }
 
-  }
+}
 });
 
 // =========================
@@ -46,7 +49,7 @@ router.get("/", async (req, res) => {
         clientes.telefone
       FROM agendamentos
       LEFT JOIN clientes
-      ON agendamentos.cliente_id = clientes.id
+      ON agendamentos.cliente = clientes.nome
       ORDER BY agendamentos.data, agendamentos.horario
       `
     );
@@ -68,22 +71,12 @@ router.post("/", upload.single("comprovante"), async (req, res) => {
 console.log("FILE:", req.file);
   const {
     cliente,
-    cliente_id,
     servico,
     data,
     horario,
     pagamento,
     total,
   } = req.body;
-  console.log({
-cliente,
-cliente_id,
-servico,
-data,
-horario,
-pagamento,
-total
-});
   
   const comprovante = req.file ? req.file.filename : null;
 
@@ -92,7 +85,6 @@ total
       erro: "Preencha todos os campos",
     });
   }
-// =========================
 
   try {
     // verifica se está fechado
@@ -114,34 +106,6 @@ total
         erro: "Domingo não funciona",
       });
     }
-    // =========================
-// BLOQUEAR MESMO TELEFONE NO MESMO DIA
-// =========================
-const clienteTel = await pool.query(
-  "SELECT telefone FROM clientes WHERE LOWER(nome)=LOWER($1)",
-  [cliente]
-);
-
-if (clienteTel.rows.length > 0) {
-
-  const telefoneCliente = clienteTel.rows[0].telefone;
-
-  const jaAgendou = await pool.query(
-    `
-    SELECT a.* FROM agendamentos a
-    JOIN clientes c ON a.cliente_id = c.id
-    WHERE c.telefone = $1 AND a.data = $2
-    `,
-    [telefoneCliente, data]
-  );
-
-  if (jaAgendou.rows.length > 0) {
-    return res.status(400).json({
-      erro: "Esse telefone já tem agendamento nesse dia"
-    });
-  }
-
-}
 
     // verifica horário ocupado
     const existe = await pool.query(
@@ -154,30 +118,17 @@ if (clienteTel.rows.length > 0) {
         erro: "Horário ocupado",
       });
     }
-// busca o id do cliente
-const clienteBanco = await pool.query(
-  "SELECT id FROM clientes WHERE LOWER(nome)=LOWER($1)",
-  [cliente]
-);
 
-if (clienteBanco.rows.length === 0) {
-  return res.status(400).json({
-    erro: "Cliente não encontrado no banco"
-  });
-}
-
-const cliente_id = clienteBanco.rows[0].id;
     // cria agendamento
     const result = await pool.query(
   `
   INSERT INTO agendamentos
-(cliente, cliente_id, servico, data, horario, pagamento, total, comprovante)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+(cliente, servico, data, horario, pagamento, total, comprovante)
+VALUES ($1,$2,$3,$4,$5,$6,$7)
   RETURNING id
   `,
   [
     cliente,
-    cliente_id,
     servico,
     data,
     horario,
