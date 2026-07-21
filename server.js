@@ -205,20 +205,19 @@ app.post("/clientes", async (req, res) => {
 
     // verifica se cliente já existe
     const clienteExiste = await pool.query(
-      "SELECT * FROM clientes WHERE telefone=$1",
-      [telefone]
-    );
+`
+SELECT * FROM clientes 
+WHERE telefone=$1 OR LOWER(nome)=LOWER($2)
+`,
+[
+ telefone,
+ nome
+]
+);
 
 
     // se já existe, não cria outro
     if(clienteExiste.rows.length > 0){
-
-      return res.json({
-        mensagem:"Cliente já cadastrado",
-        cliente: clienteExiste.rows[0]
-      });
-
-    }
 
 
     // se não existe, cria
